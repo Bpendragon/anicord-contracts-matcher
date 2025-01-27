@@ -4,7 +4,6 @@ import sys
 import warnings
 import csv
 from collections import defaultdict, OrderedDict
-from os import write
 from pathlib import Path
 
 import anilist
@@ -51,11 +50,11 @@ if __name__ == '__main__':
     anilist_usernames_file = _parse_file(USERNAMES_FILE_NAME)
 
     # Call anilist to get information about the anime we want to watch
-    anilist_is_trash: dict[
-        int, bool] = {}  # Look, I know it's not pythonic and all that, but it allows me to save expensive API calls or cycling through the file list again.
+    anilist_is_trash: dict[int, bool] = {}  # Look, I know it's not pythonic and all that, but it allows me to save expensive API calls or cycling through the file list again.
 
     for link in anilist_links:
-        anilistId = int(re.search(r'(?:anime|manga)/(\d+)/', link).group(1))
+        print(f'Collecting information on {link}')
+        anilistId = int(re.search(r'(?:anime|manga)/(\d+)/?', link).group(1))
         parts = link.partition(" | ")
         anilist_is_trash[anilistId] = parts[2] == "T"
 
@@ -79,9 +78,14 @@ if __name__ == '__main__':
     # Get user ids for all participating members.
     for u in anilist_usernames_file:
         us = u.split(" | ")
-        match = None
+
+        #Items needed for the dictionary
+        alist_uname = None
         flag = None
         discord_name = None
+        user_id = None
+
+        #Extract anilist username from URL
         if us[0].lower().startswith('https://'):
             match = re.search(r'(?<=user/)([a-zA-Z0-9]+)/?', us[0])
 
@@ -89,10 +93,12 @@ if __name__ == '__main__':
                 print(f'Not an anilist user: {u}', file=sys.stderr)
                 continue
 
-            match = match.group(1)
-        else:
-            match = us[0]
+            alist_uname = match.group(1)
 
+        else: #URL not provided, assume they just gave us a username
+            alist_uname = us[0]
+
+        # Extract discord username and contract type(s) to assign
         if len(us) >= 2:
             if us[1] in ("S", "T", "B"):
                 flag = us[1]
@@ -102,11 +108,17 @@ if __name__ == '__main__':
                     flag = us[2]
                 else:
                     flag = None
-        user_id = anilist.get_user_id(match)
+
+        if alist_uname.isdigit(): #Anilist usernames must not be purely numeric, if the match is purely numeric we should confirm the user_id exists and pull their anilist username
+            (user_id, alist_uname) = anilist.get_anilist_username_by_id(alist_uname)
+            print(f'Anilist Username found for id {user_id}: {alist_uname}')
+        else: #If an actual username was provided, pull their user_id
+            user_id = anilist.get_user_id(alist_uname)
+            print(f'Anilist User id found for username {alist_uname}: {user_id}')
         if user_id is None:
             print(f'Anilist user not found: {u}', file=sys.stderr)
             continue
-        anilist_users[user_id] = anilist.User(id=int(user_id), username=match,
+        anilist_users[user_id] = anilist.User(id=int(user_id), username=alist_uname,
                                               flag=flag if flag else anilist.DEFAULT_CONTRACT_TYPE, discord_name=discord_name if discord_name else "")
 
     # We now have the background information to allow us to start assigning anime.

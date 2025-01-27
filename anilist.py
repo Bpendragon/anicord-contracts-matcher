@@ -135,6 +135,15 @@ query($userName: String) {
 }
 """
 
+GET_ANILIST_USERNAME_BY_ID_QUERY = """
+query($userId: Int) {
+  User(id: $userId) {
+    id,
+    name
+  }
+}
+"""
+
 
 def _get_all_pages(query, variables, *, query_field='mediaList', _page=0):
     response = _make_request(query, variables={**variables, 'page': _page})
@@ -173,7 +182,7 @@ def _make_request(query: str, variables: dict):
         print(f'429: {response}. Waiting {timeout_seconds} seconds...', file=sys.stderr)
         time.sleep(timeout_seconds)
 
-    time.sleep(0.7)  # This should _theoretically_ mean we never hit the 429 again.
+    time.sleep(.9)
     return response.json()
 
 
@@ -199,7 +208,6 @@ def get_users_media(users: list[User], media: set[AnilistEntry]) -> defaultdict[
 def get_media_information(media_ids: list[int]):
     return _get_media_information(sorted(media_ids))
 
-
 @cache.memoize()
 def get_user_id(user_name: str) -> int | None:
     print(f'Fetching user {user_name}')
@@ -213,6 +221,20 @@ def get_user_id(user_name: str) -> int | None:
         return None
 
     return response['data']['User']['id']
+
+@cache.memoize()
+def get_anilist_username_by_id(user_id: int) -> (int | None, str | None) :
+    print(f'Fetching user by id {user_id}')
+
+    response = _make_request(query=GET_ANILIST_USERNAME_BY_ID_QUERY, variables={
+        'userId': int(user_id)
+    })
+
+    if 'errors' in response and len(response['errors']) != 0:
+        print(f'{user_id} not found ({response})', file=sys.stderr)
+        return None
+
+    return (response['data']['User']['id'],  response['data']['User']['name']) if int(user_id) == int(response['data']['User']['id']) else (None, None)
 
 
 @cache.memoize()
