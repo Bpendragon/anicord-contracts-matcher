@@ -19,7 +19,11 @@ year and the script can safely be re-run.
 - Put the pool of anilist links in `pool.txt`
   - After each line place a space, pipe, a second space, and then either `S` or `T` to indicate "Staff" (some seasons "Veteran") or "Trash" specials respectively
 - Put the pool of users in `usernames.txt`
-  - After each line place a space, pipe, a second space, and then either `S`, `T`, or `B` to indicate "Staff" (some seasons "Veteran"), "Trash", or "Both" specials respectively
+  - Each row consists of up to 3 columns
+  - Columns are delimited by ` | ` (space, pipe, space)
+  - The first column is required and is the link to the user's anilist profile.
+  - The second column is the user's discord username. It is optional and may be removed entirely, if omitted out it will be blank in the output CSV.
+  - The final column is which contracts they are signed up for, it is optional, but if provided it must be either `S`, `T`, or `B` to indicate "Staff" (some seasons "Veteran"), "Trash", or "Both" specials respectively. If omitted will default to `S`
 - Run `main.py`
 
 ### Spring 2024

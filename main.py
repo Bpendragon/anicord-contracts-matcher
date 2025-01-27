@@ -19,8 +19,8 @@ POOL_FILE_NAME = Path('./data/pool.txt')
 
 anilist_pool: dict[int, AnilistEntry] = {}
 anilist_users = OrderedDict()  # We want to preserve the original insertion order. This is to help Frazzle copy-paste the output
-staff_selections = defaultdict(int)
-trash_selections = defaultdict(int)
+staff_selections: defaultdict[AnilistEntry, int] = defaultdict(int)
+trash_selections: defaultdict[AnilistEntry, int] = defaultdict(int)
 
 
 def _parse_file(file_name: Path):
@@ -31,7 +31,7 @@ def _parse_file(file_name: Path):
 
 def select_anime(possible_media: list[AnilistEntry], is_trash: bool = False) -> AnilistEntry:
     if len(possible_media) == 0: return DEFAULT_ANILIST_ENTRY
-    choices = random.choices(list(possible_media), k=len(possible_media))
+    choices: list[AnilistEntry] = random.choices(list(possible_media), k=len(possible_media))
 
     choice = choices[0]
     for c in choices[1:]:
@@ -78,9 +78,12 @@ if __name__ == '__main__':
 
     # Get user ids for all participating members.
     for u in anilist_usernames_file:
-        us = u.partition(" | ")
+        us = u.split(" | ")
+        match = None
+        flag = None
+        discord_name = None
         if us[0].lower().startswith('https://'):
-            match = re.search(r'(?<=user/)([a-zA-Z0-9]+)/?', u)
+            match = re.search(r'(?<=user/)([a-zA-Z0-9]+)/?', us[0])
 
             if not match:
                 print(f'Not an anilist user: {u}', file=sys.stderr)
@@ -90,12 +93,21 @@ if __name__ == '__main__':
         else:
             match = us[0]
 
+        if len(us) >= 2:
+            if us[1] in ("S", "T", "B"):
+                flag = us[1]
+            else:
+                discord_name = us[1]
+                if len(us) >= 3:
+                    flag = us[2]
+                else:
+                    flag = None
         user_id = anilist.get_user_id(match)
         if user_id is None:
             print(f'Anilist user not found: {u}', file=sys.stderr)
             continue
         anilist_users[user_id] = anilist.User(id=int(user_id), username=match,
-                                              flag=us[2] if us[2] else anilist.DEFAULT_CONTRACT_TYPE)
+                                              flag=flag if flag else anilist.DEFAULT_CONTRACT_TYPE, discord_name=discord_name if discord_name else "")
 
     # We now have the background information to allow us to start assigning anime.
 
@@ -187,7 +199,7 @@ if __name__ == '__main__':
 
     for u in trash_users:
         if u in both_users: continue
-        media = select_anime(trash_users_eligible_media[u])
+        media = select_anime(trash_users_eligible_media[u], is_trash=True)
         users_assigned_trash[u] = media
 
     print("\nStaff/Veteran Specials:\n")
@@ -196,9 +208,9 @@ if __name__ == '__main__':
     def write_output(filename: str, assignments: dict[User, AnilistEntry], contract_type: str = "Staff"):
         with open(filename, 'w', newline='', encoding='utf-8') as csvfile:
             csvwriter = csv.writer(csvfile, quoting=csv.QUOTE_ALL)
-            csvwriter.writerow(['Username', 'Assigned Media', 'Media Type', 'Contract Type', 'Anilist Link'])
+            csvwriter.writerow(['Anilist Username', 'Discord Username', 'Assigned Media', 'Media Type', 'Contract Type', 'Anilist Link'])
             for user, media in assignments.items():
-                csvwriter.writerow([user.username, media.en_title if media.en_title else media.jp_title,
+                csvwriter.writerow([user.username, user.discord_name, media.en_title if media.en_title else media.jp_title,
                                     'Anime' if media.is_anime else 'Manga', contract_type, media.url])
                 print(
                     f"{user.username}: \"{media.en_title if media.en_title else media.jp_title}\" {'Anime' if media.is_anime else 'Manga'}")

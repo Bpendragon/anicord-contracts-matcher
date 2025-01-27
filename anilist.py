@@ -29,14 +29,15 @@ class User(AnilistItem):
     """
     An anicord user.
     Attributes:
-        username (str): The username of the user.
+        username (str): The anilist username of the user.
         flag (str): Flag for contracts type.
             Valid values: `S` (for Staff/Veteran Specials), `T` (for Trash Specials), `B` (for Both).
             The parser will use DEFAULT_CONTRACT_TYPE if a value is not specified in the file.
-        user_id: The users id on Anilist.
+        discord_name (str): The user's discord username.
     """
     username: str
     flag: str
+    discord_name: str
 
 
 @dataclass(frozen=True)
